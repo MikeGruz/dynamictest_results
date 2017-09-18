@@ -40,12 +40,11 @@ server <- function(input, output) {
     mutate(date = as.character(as.POSIXct(date, origin="1970-01-01")))
 
   # get unique list of usernames
-  output$resultsTable <- db.df %>%
+  userlist.df <- db.df %>%
     group_by(user_id) %>%
-    summarise(trials = n()) %>%
-    renderTable(.)
+    summarise(trials = n())
 
-  #output$resultsTable <- renderTable(db.df)
+  output$resultsTable <- renderTable(userlist.df)
 
 
 }
