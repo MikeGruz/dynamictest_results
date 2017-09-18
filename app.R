@@ -42,7 +42,8 @@ server <- function(input, output) {
   # get unique list of usernames
   output$resultsTable <- db.df %>%
     group_by(user_id) %>%
-    summarise(trials = n())
+    summarise(trials = n()) %>%
+    renderTable(.)
 
   #output$resultsTable <- renderTable(db.df)
 
