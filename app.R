@@ -30,7 +30,7 @@ ui <- bootstrapPage(
 
 )
 
-# Define server logic required to draw a histogram
+# server logic for displaying data
 server <- function(input, output) {
 
   # get db results into table
@@ -39,9 +39,12 @@ server <- function(input, output) {
   ) %>%
     mutate(date = as.character(as.POSIXct(date, origin="1970-01-01")))
 
-  print(db.df)
+  # get unique list of usernames
+  output$resultsTable <- db.df %>%
+    group_by(user_id) %>%
+    summarise(trials = n())
 
-  output$resultsTable <- renderTable(db.df)
+  #output$resultsTable <- renderTable(db.df)
 
 
 }
