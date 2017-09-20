@@ -9,9 +9,11 @@
 
 require(shiny)
 require(dplyr)
+require(DT)
 
 # load db
-source("/srv/shiny-server/dynamictest/db/load_db.R")
+db = dbConnect(SQLite(), dbname = "/srv/shiny-server/dynamictest/data/results.sqlite")
+
 
 # Define UI for application that draws a histogram
 ui <- bootstrapPage(
@@ -19,14 +21,15 @@ ui <- bootstrapPage(
   navbarPage("Statistics Practice Results", inverse=TRUE),
 
   fluidRow(
-    column(width=2),
+    column(width = 2),
     column(
-      width=10,
-      tableOutput("resultsTable")
-
-    )
+      width = 8,
+      dataTableOutput("resultsTable"),
+      dataTableOutput("studentDrilldown"),
+      dataTableOutput("assignDrilldown")
+    ),
+    column(width = 2)
   )
-
 
 )
 
@@ -37,15 +40,53 @@ server <- function(input, output) {
   db.df <- as_data_frame(
     dbGetQuery(db, "select * from results")
   ) %>%
-    mutate(date = as.character(as.POSIXct(date, origin="1970-01-01")))
+    mutate(user_id = tolower(user_id),
+           date = as.character(as.POSIXct(date, origin="1970-01-01")))
 
   # get unique list of usernames
   userlist.df <- db.df %>%
     group_by(user_id) %>%
     summarise(trials = n())
+  
+  # get unique list of users, by assignment for studentDrilldown
+  assignlist.df <- db.df %>%
+    group_by(user_id, assign) %>%
+    summarise(trials = n(),
+              correct = sum(correct, na.rm = TRUE),
+              incorrect = trials - correct,
+              correct_perc = correct/trials)
+  
+  # get specific assignment answers
 
-  output$resultsTable <- renderTable(userlist.df)
-
+  output$resultsTable <- renderDataTable(userlist.df)
+  
+  # get student drilldown from click
+  studentDrilldata <- reactive({
+    validate(
+      need(length(input$resultsTable_rows_selected) > 0, "Select rows!")
+    )
+    
+    selected_student <- userlist.df[as.integer(input$resultsTable_rows_selected),]$user_id
+    assignlist.df[assignlist.df$user_id %in% selected_student,]
+    
+  })
+  
+  # get assignment drilldown from click
+  assignDrilldata <- reactive({
+    validate(
+      need(length(input$studentDrilldown_rows_selected) > 0, "Select rows!")
+    )
+    
+    selected_assign <- assignlist.df[as.integer(input$studentDrilldown_rows_selected),]
+    subset(db.df, user_id == selected_assign$user_id & assign == selected_assign$assign)
+    
+  })
+  
+  
+  # display subsetted data
+  output$studentDrilldown <- renderDataTable(studentDrilldata())
+  
+  output$assignDrilldown <- renderDataTable(assignDrilldata())
 
 }
 
